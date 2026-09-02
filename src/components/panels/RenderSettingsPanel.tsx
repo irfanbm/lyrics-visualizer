@@ -91,6 +91,14 @@ export function RenderSettingsPanel({ config, onChange }: Props) {
         </label>
       </div>
 
+      {/* Opacity */}
+      <div className="p-4 space-y-3 border-b border-white/10">
+        <label className="flex flex-col gap-1 text-[11px] text-white/70">Opacity lirik tidak aktif
+          <input type="range" min={0.05} max={1} step={0.01} value={(config as any).inactiveOpacity ?? 0.28} onChange={e => onChange({ inactiveOpacity: parseFloat(e.target.value) } as any)} className="accent-emerald-500" />
+          <span className="font-mono text-[10px] text-white/50">{Math.round(((config as any).inactiveOpacity ?? 0.28)*100)}%</span>
+        </label>
+      </div>
+
       {/* Font Style */}
       <div className="p-4 space-y-3 border-b border-white/10">
         <label className="text-[11px] text-white/60 block">Font Style</label>

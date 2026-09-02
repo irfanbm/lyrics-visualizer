@@ -40,7 +40,7 @@ export default function App() {
       showTitle: false, karaokeMode: true, lyricPosition: 'center',
       bgColor: '#0a0a0a', fontFamily: 'Poppins',
       lineGap: 1.85, fadeEdges: true, visibleLines: 5,
-      fontWeight: 700, fontItalic: false, transparentBg: false,
+      fontWeight: 700, fontItalic: false, transparentBg: false, inactiveOpacity: 0.28,
     } as any
   })
 
@@ -54,9 +54,13 @@ export default function App() {
   const modeRef = useRef(mode)
   const currentTimeRef = useRef(currentTime)
   const offsetRef = useRef(offset)
+  const configRef = useRef(config)
+  const displayLinesRef = useRef(displayLines)
   useEffect(() => { modeRef.current = mode }, [mode])
   useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
   useEffect(() => { offsetRef.current = offset }, [offset])
+  useEffect(() => { configRef.current = config }, [config])
+  useEffect(() => { displayLinesRef.current = displayLines }, [displayLines])
 
   // baris kosong = jeda visual, tidak perlu di-tap — hanya hitung baris berisi teks
   const editorTotalLines = editorLines.filter(l => l.text.trim() !== '').length
@@ -290,29 +294,30 @@ export default function App() {
     const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8_000_000 })
     const chunks: Blob[] = []
     recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data) }
-    const done = new Promise<void>(res => { recorder.onstop = () => res })
+    const done = new Promise<void>(res => { recorder.onstop = () => res() })
 
     audioRef.current.currentTime = 0
     await audioRef.current.play()
     recorder.start()
 
-    const finalDur = isFinite(duration) && duration > 0 ? duration : (audioRef.current.duration || 1)
+    const finalDur = isFinite(duration) && duration > 0 ? duration : (audioRef.current.duration || 10)
 
     const renderLoop = () => {
-      if (!audioRef.current!.ended && !audioRef.current!.paused) {
-        const time = audioRef.current!.currentTime
-        setExportProgress(finalDur ? (time / finalDur) * 100 : 0)
-
-        renderLyricFrame(ctx, config, {
-          lines: displayLines,
-          time: time,
-          duration: finalDur,
-          title: ''
-        })
+      const el = audioRef.current!
+      const time = el.currentTime
+      setExportProgress(finalDur ? Math.min(100, (time / finalDur) * 100) : 0)
+      const curCfg = configRef.current
+      const curLines = displayLinesRef.current
+      renderLyricFrame(ctx, curCfg, { lines: curLines, time, duration: finalDur, title: '' })
+      if (!el.ended && !el.paused) {
         requestAnimationFrame(renderLoop)
+      } else {
+        if (recorder.state === 'recording') recorder.stop()
       }
     }
     requestAnimationFrame(renderLoop)
+    // safety: paksa stop jika audio tidak fire ended (mis. capture tanpa audio track)
+    setTimeout(() => { if (recorder.state === 'recording') recorder.stop() }, (finalDur + 1) * 1000)
 
     await done
 

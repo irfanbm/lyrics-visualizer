@@ -108,10 +108,11 @@ export function renderLyricFrame(
       scale = baseScale + punch
     }
     const y = baseY + (i - floatIdx) * lineGap
-    let opacity = 0.28 + 0.72 * activeness
+    const baseOp = (config as any).inactiveOpacity ?? 0.28
+    let opacity = baseOp + (1 - baseOp) * activeness
     if (fadeEdges) {
       const edgeDist = Math.abs(i - floatIdx)
-      const edgeFade = Math.max(0, 1 - Math.max(0, edgeDist - half + 1) * 0.85)
+      const edgeFade = Math.max(0.35, 1 - Math.max(0, edgeDist - half) * 0.55)
       opacity *= edgeFade
     }
     const fw = (config as any).fontWeight ?? 700
@@ -253,9 +254,8 @@ function drawPlainLine(
 ): void {
   const style = italic ? 'italic ' : ''
   const weight = activeness > 0.82 ? baseWeight : 500
-  const alpha = 0.52 + 0.48 * activeness
   ctx.font = `${style}${weight} ${fontSize}px "${fontFamily}", sans-serif`
-  ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`
+  ctx.fillStyle = '#ffffff'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 

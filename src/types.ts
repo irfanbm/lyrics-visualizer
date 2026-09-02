@@ -37,6 +37,8 @@ export interface RenderConfig {
   fontItalic: boolean
   /** Export transparan (background alpha 0) */
   transparentBg: boolean
+  /** Opacity lirik tidak aktif */
+  inactiveOpacity: number
 }
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
@@ -57,6 +59,7 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   fontWeight: 700,
   fontItalic: false,
   transparentBg: false,
+  inactiveOpacity: 0.28,
 }
 
 export interface Dimension {
