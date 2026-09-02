@@ -1,9 +1,12 @@
+import { useEffect, useRef } from 'react'
+
 interface Props {
   editorLines: any[]
   mode: 'player' | 'editor'
   nextIndex: number
   markedCount: number
   totalLines: number
+  currentTime: number
   formatTimeShort: (s: number) => string
   onTextChange: (idx: number, val: string) => void
   onDeleteLine: (idx: number) => void
@@ -16,6 +19,7 @@ interface Props {
   onClearTimes: () => void
   onApplyEditor: () => void
   offset: number
+  onStartFromZero: () => void
 }
 
 export function EditorListPanel({
@@ -24,6 +28,7 @@ export function EditorListPanel({
   nextIndex,
   markedCount,
   totalLines,
+  currentTime,
   formatTimeShort,
   onTextChange,
   onDeleteLine,
@@ -36,38 +41,45 @@ export function EditorListPanel({
   onClearTimes,
   onApplyEditor,
   offset,
+  onStartFromZero,
 }: Props) {
+  const nextItemRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (nextItemRef.current) {
+      nextItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [nextIndex])
+
   if (mode !== 'editor') {
     return (
       <section className="bg-black/40 border border-white/10 rounded-3xl p-5 text-center">
-        <p className="text-sm text-white/60">Pindah ke <b className="text-white">Editor Mode</b> untuk mulai marking manual.</p>
-        <p className="text-[11px] text-white/40 mt-1">Paste TXT atau import .txt dulu, lalu Play dan tap.</p>
+        <p className="text-sm text-white/60">Switch to <b className="text-white">Editor Mode</b> untuk marking.</p>
+        <p className="text-[11px] text-white/40 mt-1">Import audio + txt, lalu <b className="text-amber-300">Start from 0</b>.</p>
       </section>
     )
   }
 
   const nextLine = nextIndex >= 0 ? editorLines[nextIndex] : null
   const allDone = nextIndex < 0 && totalLines > 0
+  const hasAudio = currentTime > 0 || markedCount > 0
   const pct = totalLines ? Math.round((markedCount / totalLines) * 100) : 0
 
   return (
     <section className="bg-black/40 border border-white/10 rounded-3xl overflow-hidden shrink-0">
-      {/* Panduan 3 langkah */}
       <div className="px-4 pt-4 pb-3 border-b border-white/10 bg-white/[0.03]">
         <div className="flex items-center gap-2 text-[11px] font-bold">
-          <span className="w-6 h-6 rounded-full bg-emerald-500 text-black grid place-items-center text-xs">3</span>
-          <span className="text-emerald-300">Marking Manual</span>
+          <span className="w-6 h-6 rounded-full bg-amber-500 text-black grid place-items-center text-xs">!</span>
+          <span className="text-amber-300">Marking Mode</span>
           <span className="text-white/25">—</span>
-          <span className="text-white/60 font-normal">Play → Tap saat lirik dinyanyikan</span>
+          <span className="text-white/60 font-normal">Space = tap waktu</span>
         </div>
-        <ol className="mt-2 text-[11px] leading-relaxed text-white/60 list-decimal list-inside space-y-0.5">
-          <li><b className="text-white/80">Play</b> lagu di panel audio (atas).</li>
-          <li>Saat penyanyi mulai baris berikutnya, tekan <b className="text-emerald-300">TAP / Space</b>.</li>
-          <li>Baris yang sudah di-mark akan kunci waktunya — bisa <b className="text-white/80">Undo</b> atau geser <b className="text-white/80">-0.1/+0.1</b>.</li>
-        </ol>
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-white/50">
+          <span className="font-mono bg-white/10 px-2 py-0.5 rounded text-emerald-300">⏱ {formatTimeShort(currentTime)}</span>
+          <span>audio position</span>
+        </div>
       </div>
 
-      {/* Studio TAP */}
       <div className="p-4 space-y-3 bg-gradient-to-b from-emerald-500/[0.07] to-transparent">
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-white/60">{markedCount}/{totalLines} • {pct}%</span>
@@ -77,7 +89,6 @@ export function EditorListPanel({
           <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
 
-        {/* Baris berikutnya - besar */}
         <div className={`rounded-2xl border p-3 ${allDone ? 'bg-emerald-500/15 border-emerald-500/30' : 'bg-white/[0.06] border-white/10'}`}>
           <div className="text-[10px] tracking-widest text-white/40 mb-1">{allDone ? 'SELESAI' : `BERIKUTNYA • #${nextIndex + 1}`}</div>
           <div className={`text-[15px] leading-snug font-bold min-h-[1.6em] ${allDone ? 'text-emerald-200' : 'text-white'}`}>
@@ -89,16 +100,27 @@ export function EditorListPanel({
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={onMarkNext}
-            disabled={allDone}
-            className={`col-span-2 py-3 rounded-xl font-black text-sm tracking-wide transition ${allDone ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 active:scale-[0.98]'}`}
-          >
-            ● TAP / Space
-          </button>
-          <button onClick={onUndoLast} disabled={markedCount === 0} className="py-3 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-30 text-xs font-bold border border-white/10">
-            ↩ Undo
-          </button>
+          {!hasAudio ? (
+            <button
+              onClick={onStartFromZero}
+              className="col-span-3 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-sm transition shadow-lg shadow-amber-500/20"
+            >
+              ⏮ Start from 0 — Reset &amp; Play
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onMarkNext}
+                disabled={allDone}
+                className={`col-span-2 py-3 rounded-xl font-black text-sm tracking-wide transition ${allDone ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 active:scale-[0.98]'}`}
+              >
+                ● TAP (Space)
+              </button>
+              <button onClick={onUndoLast} disabled={markedCount === 0} className="py-3 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-30 text-xs font-bold border border-white/10">
+                ↩ Undo
+              </button>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-4 gap-2">
@@ -109,12 +131,12 @@ export function EditorListPanel({
         </div>
 
         <div className="flex gap-2">
-          <button onClick={onClearTimes} className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10">Reset waktu</button>
+          <button onClick={onClearTimes} className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10">Reset</button>
+          <button onClick={onStartFromZero} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10">⏮ From 0</button>
           <button onClick={onApplyEditor} disabled={markedCount === 0} className="flex-[1.4] py-2 rounded-xl bg-white text-black font-black text-xs disabled:opacity-30 hover:bg-white/90">Terapkan ke Player →</button>
         </div>
       </div>
 
-      {/* Daftar baris */}
       <div className="p-3 max-h-[320px] overflow-y-auto custom-scrollbar space-y-2">
         {editorLines.length === 0 && (
           <div className="text-center text-[11px] text-white/40 py-8">Belum ada baris. Paste di panel "Import Text" lalu Send to Editor.</div>
@@ -123,7 +145,7 @@ export function EditorListPanel({
           const isNext = i === nextIndex
           const isDone = line.startTime !== null
           return (
-            <div key={line.id} className={`rounded-xl border p-2.5 flex gap-2.5 items-start ${isNext ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]' : isDone ? 'bg-white/[0.05] border-white/10' : 'bg-white/[0.03] border-white/5'}`}>
+            <div key={line.id} ref={isNext ? nextItemRef : null} className={`rounded-xl border p-2.5 flex gap-2.5 items-start transition-all ${isNext ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]' : isDone ? 'bg-white/[0.05] border-white/10' : 'bg-white/[0.03] border-white/5'}`}>
               <div className={`w-7 h-7 rounded-lg grid place-items-center text-xs font-black shrink-0 ${isNext ? 'bg-emerald-500 text-black' : isDone ? 'bg-white text-black' : 'bg-white/10 text-white/50'}`}>{i + 1}</div>
               <div className="flex-1 min-w-0 space-y-1.5">
                 <input value={line.text} onChange={e => onTextChange(i, e.target.value)} placeholder="(kosong — akan jadi jeda)" className="w-full bg-transparent outline-none text-[13px] leading-snug text-white placeholder:text-white/25" />
@@ -131,8 +153,8 @@ export function EditorListPanel({
                   <span className={`font-mono text-[11px] px-2 py-1 rounded-full border ${isDone ? 'bg-white text-black border-white' : 'bg-white/5 text-white/40 border-white/10'}`}>
                     {isDone ? formatTimeShort(line.startTime!) : '--:--'}
                   </span>
-                  <button onClick={() => onMarkAt(i)} className={`px-2.5 py-1 rounded-full text-xs font-bold border ${isNext ? 'bg-emerald-500 text-black border-emerald-500 animate-pulse' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}>
-                    {isNext ? '● Mark ini' : 'Set di sini'}
+                  <button onClick={() => onMarkAt(i)} className={`px-2.5 py-1 rounded-full text-xs font-bold border ${isNext ? 'bg-emerald-500 text-black border-emerald-500' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}>
+                    {isNext ? '● Mark (Space)' : 'Re-set'}
                   </button>
                   {isDone && (
                     <>
