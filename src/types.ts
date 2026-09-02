@@ -32,12 +32,11 @@ export interface RenderConfig {
   fadeEdges: boolean
   /** Jumlah baris lirik yang tampil di sekitar baris aktif */
   visibleLines: number
-  /** Opacity lirik tidak aktif (0.05 - 0.6) */
-  inactiveOpacity: number
-  /** Saat jeda panjang, sembunyikan semua lirik (opacity 0) */
-  hideOnGap: boolean
-  /** Opacity saat jeda jika tidak disembunyikan (0 - 0.6) */
-  gapOpacity: number
+  /** Font styling */
+  fontWeight: number
+  fontItalic: boolean
+  /** Export transparan (background alpha 0) */
+  transparentBg: boolean
 }
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
@@ -55,9 +54,9 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   lineGap: 1.85,
   fadeEdges: true,
   visibleLines: 5,
-  inactiveOpacity: 0.28,
-  hideOnGap: false,
-  gapOpacity: 0.35,
+  fontWeight: 700,
+  fontItalic: false,
+  transparentBg: false,
 }
 
 export interface Dimension {

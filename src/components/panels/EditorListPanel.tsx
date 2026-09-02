@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 
 interface Props {
   editorLines: any[]
@@ -43,13 +43,6 @@ export function EditorListPanel({
   offset,
   onStartFromZero,
 }: Props) {
-  const nextItemRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (nextItemRef.current) {
-      nextItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }, [nextIndex])
 
   if (mode !== 'editor') {
     return (
@@ -145,7 +138,7 @@ export function EditorListPanel({
           const isNext = i === nextIndex
           const isDone = line.startTime !== null
           return (
-            <div key={line.id} ref={isNext ? nextItemRef : null} className={`rounded-xl border p-2.5 flex gap-2.5 items-start transition-all ${isNext ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]' : isDone ? 'bg-white/[0.05] border-white/10' : 'bg-white/[0.03] border-white/5'}`}>
+            <div key={line.id} className={`rounded-xl border p-2.5 flex gap-2.5 items-start transition-all ${isNext ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]' : isDone ? 'bg-white/[0.05] border-white/10' : 'bg-white/[0.03] border-white/5'}`}>
               <div className={`w-7 h-7 rounded-lg grid place-items-center text-xs font-black shrink-0 ${isNext ? 'bg-emerald-500 text-black' : isDone ? 'bg-white text-black' : 'bg-white/10 text-white/50'}`}>{i + 1}</div>
               <div className="flex-1 min-w-0 space-y-1.5">
                 <input value={line.text} onChange={e => onTextChange(i, e.target.value)} placeholder="(kosong — akan jadi jeda)" className="w-full bg-transparent outline-none text-[13px] leading-snug text-white placeholder:text-white/25" />

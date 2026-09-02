@@ -85,30 +85,36 @@ export function RenderSettingsPanel({ config, onChange }: Props) {
             <span className="font-mono text-[10px] text-white/50">{(config as any).visibleLines ?? 5} baris</span>
           </label>
         </div>
-        <label className="flex flex-col gap-1 text-[11px] text-white/70">Opacity lirik tidak aktif
-          <input type="range" min={0.05} max={0.6} step={0.02} value={(config as any).inactiveOpacity ?? 0.28} onChange={e => onChange({ inactiveOpacity: parseFloat(e.target.value) } as any)} className="accent-emerald-500" />
-          <span className="font-mono text-[10px] text-white/50">{Math.round(((config as any).inactiveOpacity ?? 0.28)*100)}%</span>
-        </label>
         <label className="flex items-center gap-2.5 text-[11px] cursor-pointer select-none">
           <input type="checkbox" checked={(config as any).fadeEdges ?? true} onChange={e => onChange({ fadeEdges: e.target.checked } as any)} className="accent-emerald-500 w-4 h-4 rounded" />
           <span className="text-white/70">Fade opacity tepi atas/bawah</span>
         </label>
       </div>
 
-      {/* Jeda / Gap */}
+      {/* Font Style */}
       <div className="p-4 space-y-3 border-b border-white/10">
-        <label className="text-[11px] text-white/60 block">Saat jeda antar lirik (&gt;1.2s)</label>
-        <label className="flex items-center gap-2.5 text-[11px] cursor-pointer select-none">
-          <input type="checkbox" checked={!!(config as any).hideOnGap} onChange={e => onChange({ hideOnGap: e.target.checked } as any)} className="accent-emerald-500 w-4 h-4 rounded" />
-          <span className="text-white/70">Kosongkan (opacity 0) saat jeda</span>
-        </label>
-        {!((config as any).hideOnGap) && (
-          <label className="flex flex-col gap-1 text-[11px] text-white/70">Opacity saat jeda
-            <input type="range" min={0} max={0.6} step={0.05} value={(config as any).gapOpacity ?? 0.35} onChange={e => onChange({ gapOpacity: parseFloat(e.target.value) } as any)} className="accent-emerald-500" />
-            <span className="font-mono text-[10px] text-white/50">{Math.round(((config as any).gapOpacity ?? 0.35)*100)}% (0% = hilang)</span>
+        <label className="text-[11px] text-white/60 block">Font Style</label>
+        <div className="grid grid-cols-4 gap-1.5">
+          {[400,600,700,800].map(w => (
+            <button key={w} onClick={() => onChange({ fontWeight: w } as any)} className={`px-2 py-2 rounded-lg text-[11px] font-bold transition ${((config as any).fontWeight ?? 700) === w ? 'bg-emerald-500 text-black' : 'bg-white/5 hover:bg-white/15 border border-white/10 text-white/60'}`}>{w}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex items-center gap-2 text-[11px] cursor-pointer select-none bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+            <input type="checkbox" checked={!!(config as any).fontItalic} onChange={e => onChange({ fontItalic: e.target.checked } as any)} className="accent-emerald-500 w-4 h-4 rounded" />
+            <span className="text-white/70 italic">Italic</span>
           </label>
-        )}
-        <p className="text-[10px] text-white/35 leading-relaxed">Fitur jeda sudah ada: jika jarak antar baris &gt;1.2s, lirik akan memudar/kosong di tengah jeda. Atur di sini apakah mau dim-redupkan atau benar-benar kosong, lalu muncul lagi halus saat baris berikutnya masuk.</p>
+          <div className="flex items-center justify-center text-[10px] text-white/30 border border-dashed border-white/10 rounded-lg">Preview: <span style={{ fontWeight: (config as any).fontWeight ?? 700, fontStyle: (config as any).fontItalic ? 'italic' : 'normal', fontFamily: config.fontFamily }} className="ml-1 text-white">Aa</span></div>
+        </div>
+      </div>
+
+      {/* Export Transparan */}
+      <div className="p-4 space-y-2 border-b border-white/10">
+        <label className="flex items-center gap-2.5 text-[11px] cursor-pointer select-none">
+          <input type="checkbox" checked={!!(config as any).transparentBg} onChange={e => onChange({ transparentBg: e.target.checked } as any)} className="accent-emerald-500 w-4 h-4 rounded" />
+          <span className="text-white/70">Background transparan (export)</span>
+        </label>
+        <p className="text-[10px] text-white/35 leading-relaxed">Jika aktif, preview & export video jadi transparan (VP9 alpha) — cocok untuk overlay di Premiere/CapCut. Background color diabaikan.</p>
       </div>
 
       {/* Toggleable Elements */}

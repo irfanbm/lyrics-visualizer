@@ -26,15 +26,18 @@ export function renderLyricFrame(
   const { w, h } = getDimensions(config)
 
   // ---- Background ----
-  ctx.fillStyle = config.bgColor
-  ctx.fillRect(0, 0, w, h)
-
-  const grad = ctx.createLinearGradient(0, 0, 0, h)
-  grad.addColorStop(0, config.bgColor + '00')
-  grad.addColorStop(0.5, config.bgColor + '55')
-  grad.addColorStop(1, config.bgColor + 'CC')
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, w, h)
+  if ((config as any).transparentBg) {
+    ctx.clearRect(0, 0, w, h)
+  } else {
+    ctx.fillStyle = config.bgColor
+    ctx.fillRect(0, 0, w, h)
+    const grad = ctx.createLinearGradient(0, 0, 0, h)
+    grad.addColorStop(0, config.bgColor + '00')
+    grad.addColorStop(0.5, config.bgColor + '55')
+    grad.addColorStop(1, config.bgColor + 'CC')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, w, h)
+  }
 
   const fontRef = getDefaultFontSize(w, h, config.fontFamily)
 
@@ -63,16 +66,6 @@ export function renderLyricFrame(
     else break
   }
   const lastIdx = idx
-  let inGap = false
-  if (idx >= 0 && idx < state.lines.length - 1) {
-    const curEnd = state.lines[idx].endTime
-    const nextStart = state.lines[idx + 1].startTime
-    const gap = nextStart - curEnd
-    if (gap > 1.2 && state.time > curEnd + 0.15 && state.time < nextStart - 0.15) {
-      inGap = true
-      idx = -1
-    }
-  }
 
   // ---- Motion: slide halus terkonsentrasi saat pergantian baris + zoom-in halus ----
   const TRANSITION = 0.42 // durasi slide up saat ganti baris
@@ -106,29 +99,23 @@ export function renderLyricFrame(
     if (!line || !line.text) continue
 
     const activeness = Math.max(0, 1 - Math.abs(i - floatIdx))
-    const isTarget = i === idx && !inGap
-    // zoom-in halus: satukan scale dengan activeness agar tidak 'tek' di frame pertama
+    const isTarget = i === idx
     const baseScale = 0.96 + 0.04 * activeness
     let scale = baseScale
     if (isTarget) {
       const zp = Math.min(1, Math.max(0, lineAge / TRANSITION))
-      // punch kecil 0.96 -> 1.04 -> 1.0 (overshoot halus)
       const punch = 0.06 * easeOutCubic(zp) * (1 - 0.45 * easeOutCubic(zp))
       scale = baseScale + punch
     }
     const y = baseY + (i - floatIdx) * lineGap
-    const inactiveOp = (config as any).inactiveOpacity ?? 0.28
-    const gapOp = (config as any).gapOpacity ?? 0.35
-    const hideOnGap = !!(config as any).hideOnGap
-    let opacity = inactiveOp + (1 - inactiveOp) * activeness
-    if (inGap) {
-      opacity = hideOnGap ? 0 : opacity * gapOp
-    }
+    let opacity = 0.28 + 0.72 * activeness
     if (fadeEdges) {
       const edgeDist = Math.abs(i - floatIdx)
       const edgeFade = Math.max(0, 1 - Math.max(0, edgeDist - half + 1) * 0.85)
       opacity *= edgeFade
     }
+    const fw = (config as any).fontWeight ?? 700
+    const isItalic = !!(config as any).fontItalic
     const fontSize = Math.round(fontRef.inactive + (fontRef.active - fontRef.inactive) * activeness)
 
     ctx.globalAlpha = opacity
@@ -138,9 +125,9 @@ export function renderLyricFrame(
     ctx.translate(-w / 2, -y)
 
     if (isTarget && config.karaokeMode && line.words && line.words.length > 0) {
-      drawKaraokeLine(ctx, line, state.time, w, y, fontSize, config.fontFamily)
+      drawKaraokeLine(ctx, line, state.time, w, y, fontSize, config.fontFamily, fw, isItalic)
     } else {
-      drawPlainLine(ctx, line.text, w, y, fontSize, activeness, config.fontFamily)
+      drawPlainLine(ctx, line.text, w, y, fontSize, activeness, config.fontFamily, fw, isItalic)
     }
     ctx.restore()
   }
@@ -205,9 +192,12 @@ function drawKaraokeLine(
   canvasW: number,
   y: number,
   fontSize: number,
-  fontFamily: string
+  fontFamily: string,
+  fontWeight = 800,
+  italic = false
 ): void {
-  ctx.font = `800 ${fontSize}px "${fontFamily}", sans-serif`
+  const style = italic ? 'italic ' : ''
+  ctx.font = `${style}${fontWeight} ${fontSize}px "${fontFamily}", sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
@@ -220,7 +210,8 @@ function drawKaraokeLine(
   if (totalW > canvasW * 0.9) {
     scale = (canvasW * 0.9) / totalW
     fontSize = Math.floor(fontSize * scale)
-    ctx.font = `800 ${fontSize}px "${fontFamily}", sans-serif`
+    const style2 = italic ? 'italic ' : ''
+    ctx.font = `${style2}${fontWeight} ${fontSize}px "${fontFamily}", sans-serif`
   }
 
   let x = canvasW / 2 - totalW / 2
@@ -256,11 +247,14 @@ function drawPlainLine(
   y: number,
   fontSize: number,
   activeness: number,
-  fontFamily: string
+  fontFamily: string,
+  baseWeight = 700,
+  italic = false
 ): void {
-  const weight = activeness > 0.82 ? 800 : 600
+  const style = italic ? 'italic ' : ''
+  const weight = activeness > 0.82 ? baseWeight : 500
   const alpha = 0.52 + 0.48 * activeness
-  ctx.font = `${weight} ${fontSize}px "${fontFamily}", sans-serif`
+  ctx.font = `${style}${weight} ${fontSize}px "${fontFamily}", sans-serif`
   ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'

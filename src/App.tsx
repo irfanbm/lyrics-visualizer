@@ -40,7 +40,7 @@ export default function App() {
       showTitle: false, karaokeMode: true, lyricPosition: 'center',
       bgColor: '#0a0a0a', fontFamily: 'Poppins',
       lineGap: 1.85, fadeEdges: true, visibleLines: 5,
-      inactiveOpacity: 0.28, hideOnGap: false, gapOpacity: 0.35,
+      fontWeight: 700, fontItalic: false, transparentBg: false,
     } as any
   })
 
@@ -49,6 +49,7 @@ export default function App() {
   const [exportFmt, setExportFmt] = useState('lrc')
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
+  const [exportVideoUrl, setExportVideoUrl] = useState<string | null>(null)
 
   const modeRef = useRef(mode)
   const currentTimeRef = useRef(currentTime)
@@ -57,9 +58,11 @@ export default function App() {
   useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
   useEffect(() => { offsetRef.current = offset }, [offset])
 
-  const totalLines = lines.length
-  const markedCount = editorLines.filter(l => l.startTime !== null).length
-  const nextIndex = editorLines.findIndex(l => l.startTime === null)
+  // baris kosong = jeda visual, tidak perlu di-tap — hanya hitung baris berisi teks
+  const editorTotalLines = editorLines.filter(l => l.text.trim() !== '').length
+  const totalLines = editorTotalLines
+  const markedCount = editorLines.filter(l => l.startTime !== null && l.text.trim() !== '').length
+  const nextIndex = editorLines.findIndex(l => l.startTime === null && l.text.trim() !== '')
 
   const displayLines = useMemo(() => {
     if (offset === 0) return lines
@@ -145,30 +148,29 @@ export default function App() {
 
   useEffect(() => {
     if (mode !== 'editor') return
-    const marked = editorLines.filter(l => l.startTime !== null && l.text.trim()).sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
+    const marked = editorLines.filter(l => l.startTime !== null && l.text.trim() !== '').sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
     if (marked.length === 0) { setLines([]); return }
     const newLines: LyricLine[] = marked.map((l, i) => {
       const s = l.startTime!
-      const end = marked[i + 1]?.startTime ?? s + 4
-      const ws = l.text.trim().split(/\s+/).filter(Boolean)
+      const nextStart = marked[i + 1]?.startTime
+      const end = nextStart !== undefined ? Math.min(s + 3.4, nextStart) : s + 3.4
+      const txt = l.text.trim()
+      const ws = txt.split(/\s+/).filter(Boolean)
       const per = ws.length ? (end - s) / ws.length : (end - s)
-      return { startTime: s, endTime: end, text: l.text.trim(), words: ws.map((w, wi) => ({ text: w, startTime: s + wi * per, endTime: s + (wi + 1) * per })) }
+      return { startTime: s, endTime: end, text: txt, words: ws.map((w, wi) => ({ text: w, startTime: s + wi * per, endTime: s + (wi + 1) * per })) }
     })
     setLines(newLines)
   }, [editorLines, mode])
 
   const handleApplyEditor = () => {
-    const sorted = editorLines.filter(l => l.startTime !== null && l.text.trim()).sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
+    const sorted = editorLines.filter(l => l.startTime !== null && l.text.trim() !== '').sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
     const newLines: LyricLine[] = sorted.map((l, i) => {
       const s = l.startTime!
-      const end = sorted[i + 1]?.startTime ?? s + 4
-      const per = l.text.split(/\s+/).filter(Boolean).length ? (end - s) / l.text.split(/\s+/).filter(Boolean).length : 4
-      return {
-        startTime: s,
-        endTime: end,
-        text: l.text.trim(),
-        words: l.text.trim().split(/\s+/).filter(Boolean).map((w, wi) => ({ text: w, startTime: s + wi * per, endTime: s + (wi + 1) * per }))
-      }
+      const nextStart = sorted[i + 1]?.startTime
+      const end = nextStart !== undefined ? Math.min(s + 3.4, nextStart) : s + 3.4
+      const txt = l.text.trim()
+      const per = txt.split(/\s+/).filter(Boolean).length ? (end - s) / txt.split(/\s+/).filter(Boolean).length : 4
+      return { startTime: s, endTime: end, text: txt, words: txt.split(/\s+/).filter(Boolean).map((w, wi) => ({ text: w, startTime: s + wi * per, endTime: s + (wi + 1) * per })) }
     })
     setLines(newLines)
     setMode('player')
@@ -220,7 +222,8 @@ export default function App() {
       const reader = new FileReader()
       reader.onload = () => {
         const txt = String(reader.result || "")
-        const raw = txt.split(/\r?\n/).map(t => t.trim()).filter(t => t.length > 0)
+        const raw = txt.split(/\r?\n/).map(t => t.trim())
+        if (raw.every(t => t.length === 0)) return
         setPasteTxt(raw.join('\n'))
         const ed = raw.map((t, i) => ({ id: Date.now() + i, text: t, startTime: null as number | null }))
         setEditorLines(ed)
@@ -233,8 +236,9 @@ export default function App() {
   }
 
   const handlePasteToEditor = () => {
-    const raw = pasteTxt.split(/\r?\n/).map(t => t.trim()).filter(t => t.length > 0)
-    if (raw.length === 0) return
+    const raw = pasteTxt.split(/\r?\n/).map(t => t.trim())
+    // simpan baris kosong sebagai calon jeda — jangan filter
+    if (raw.every(t => t.length === 0)) return
     const ed = raw.map((t, i) => ({ id: Date.now() + i, text: t, startTime: null as number | null }))
     setEditorLines(ed)
     setLines([])
@@ -278,7 +282,7 @@ export default function App() {
     let audioTracks: MediaStreamTrack[] = []
     try {
       const capture = (audioRef.current as any).captureStream || (audioRef.current as any).mozCaptureStream
-      if (capture) audioTracks = capture.call(audioRef.current).getAudioTracks()()
+      if (capture) audioTracks = capture.call(audioRef.current).getAudioTracks()
     } catch {}
 
     const combined = new MediaStream([...stream.getVideoTracks(), ...audioTracks])
@@ -314,8 +318,12 @@ export default function App() {
 
     audioRef.current.pause()
     const blob = new Blob(chunks, { type: 'video/webm' })
+    const url = URL.createObjectURL(blob)
+    if (exportVideoUrl) URL.revokeObjectURL(exportVideoUrl)
+    setExportVideoUrl(url)
+    // auto-download juga
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
+    a.href = url
     a.download = `${audioName||'lyric'}-${dimsW}x${dimsH}.webm`
     a.click()
     setIsExporting(false)
@@ -384,6 +392,14 @@ export default function App() {
       startVideoExport={handleExportVideo}
       isExporting={isExporting}
       exportProgress={exportProgress}
+      videoUrl={exportVideoUrl}
+      onDownloadVideo={() => {
+        if (!exportVideoUrl) return
+        const a = document.createElement('a')
+        a.href = exportVideoUrl
+        a.download = `${audioName||'lyric'}-video.webm`
+        a.click()
+      }}
     />
   )
 

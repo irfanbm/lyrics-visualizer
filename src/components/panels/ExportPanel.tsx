@@ -7,6 +7,8 @@ interface Props {
   startVideoExport: () => void
   isExporting: boolean
   exportProgress: number
+  videoUrl?: string | null
+  onDownloadVideo?: () => void
 }
 
 const FORMATS = [
@@ -18,7 +20,7 @@ const FORMATS = [
   { id: 'ass', label: 'ASS', ext: '.ass', desc: 'FFmpeg burn-in' }
 ]
 
-export function ExportPanel({ exportFmt, setExportFmt, content, formatTimeTotal, downloadContent, startVideoExport, isExporting, exportProgress }: Props) {
+export function ExportPanel({ exportFmt, setExportFmt, content, formatTimeTotal, downloadContent, startVideoExport, isExporting, exportProgress, videoUrl, onDownloadVideo }: Props) {
   const ext = FORMATS.find(f => f.id === exportFmt)?.ext || '.lrc'
 
   return (
@@ -58,6 +60,16 @@ export function ExportPanel({ exportFmt, setExportFmt, content, formatTimeTotal,
             <button onClick={startVideoExport} className="w-full py-2.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
               🎥 Render Video WebM
             </button>
+            {videoUrl && (
+              <div className="space-y-2 pt-2 border-t border-white/10">
+                <div className="text-[11px] font-bold text-emerald-300">✅ Video siap!</div>
+                <video src={videoUrl} controls className="w-full rounded-xl border border-white/10 bg-black" />
+                <button onClick={onDownloadVideo} className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                  ⬇️ Download Video
+                </button>
+                <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="block text-center text-[11px] text-white/50 hover:text-white underline">Buka di tab baru</a>
+              </div>
+            )}
           </>
         ) : (
           <div className="space-y-2">
