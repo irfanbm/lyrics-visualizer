@@ -60,7 +60,7 @@ export function buildExport(fmt: ExportFormat, lines: LyricLine[]): string {
       }).join('\n')
     
     case 'vtt':
-      const vttLines = lines.map((l, i) => {
+      const vttLines = lines.map((l, _i) => {
         const s = formatSRTTime(l.startTime).replace(',', '.')
         const e = formatSRTTime(l.endTime).replace(',', '.')
         return `${s} --> ${e}\n${l.text}\n`

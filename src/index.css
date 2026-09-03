@@ -1,50 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&family=Poppins:wght@400;600;700&display=swap');
 @import "tailwindcss";
 
+/* Neon Glass Studio — DTCG 3-tier */
 :root {
-  --color-primary: #1E293B;
-  --color-accent: #22C55E;
-  --color-background: #0F172A;
-  --color-card: #1B2336;
-  --color-muted: #272F42;
-  --color-border: #334155;
-  --color-foreground: #F8FAFC;
+  /* Primitive - neon glass */
+  --primitive-ink: #0A0E27;
+  --primitive-violet: #1E1B4B;
+  --primitive-indigo: #312E81;
+  --primitive-slate-800: #1B1B30;
+  --primitive-slate-700: #27273B;
+  --primitive-slate-600: #3A3A5C;
+  --primitive-emerald: #22C55E;
+  --primitive-cyan: #06B6D4;
+  --primitive-fuchsia: #A855F7;
+  --primitive-slate-50: #F8FAFC;
+
+  /* Semantic */
+  --color-primary: var(--primitive-violet);
+  --color-background: var(--primitive-ink);
+  --color-card: rgba(27, 27, 48, 0.6);
+  --color-glass: rgba(255,255,255,0.08);
+  --color-glass-border: rgba(255,255,255,0.12);
+  --color-glass-strong: rgba(255,255,255,0.14);
+  --color-muted: var(--primitive-slate-700);
+  --color-border: rgba(255,255,255,0.10);
+  --color-accent: var(--primitive-emerald);
+  --color-accent-2: var(--primitive-cyan);
+  --color-foreground: var(--primitive-slate-50);
+  --color-on-accent: #0A0A0A;
+  --color-ring: var(--primitive-emerald);
+  --blur-glass: 16px;
+  --radius-glass: 20px;
+
+  /* Spacing - 4pt */
+  --space-xs: 4px; --space-sm: 8px; --space-md: 16px; --space-lg: 24px; --space-xl: 32px; --space-2xl: 48px; --space-3xl: 64px;
+
+  /* Typography */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Geist", "Poppins", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
 }
 
-/* Global scrollbar — thin, slate */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
-}
+/* Global scrollbar — glass */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
-html, body {
-  min-height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
+html { overflow-x: clip; scrollbar-gutter: stable; }
+html, body { min-height: 100%; overflow-y: auto; overflow-x: clip; }
 #root { min-height: 100vh; }
 
 body {
-  background: radial-gradient(1200px 600px at 20% -10%, #1B2336 0%, #0F172A 45%, #0B1220 100%);
+  background: 
+    radial-gradient(900px 600px at 15% 0%, rgba(168,85,247,0.22) 0%, transparent 60%),
+    radial-gradient(800px 500px at 85% 10%, rgba(6,182,214,0.18) 0%, transparent 60%),
+    radial-gradient(1000px 700px at 50% 100%, rgba(34,197,94,0.10) 0%, transparent 65%),
+    linear-gradient(180deg, #0A0E27 0%, #0F0F23 45%, #0B0F2A 100%);
   background-attachment: fixed;
-  color: #F8FAFC;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--color-foreground);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+h1, h2, h3, .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+.font-mono { font-family: var(--font-mono); }
 
-select option { background-color: #1B2336; color: #F8FAFC; }
+select option { background-color: #1B1B30; color: #F8FAFC; }
 
-/* Subtle focus ring — Pro Max checklist */
-*:focus-visible { outline: 2px solid #22C55E; outline-offset: 2px; }
+/* Glass utility */
+.glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--color-glass-border);
+}
+.glass-strong {
+  background: var(--color-glass-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+.neon-glow {
+  box-shadow: 0 0 20px rgba(34,197,94,0.25), 0 0 40px rgba(6,182,214,0.12);
+}
+.neon-text { text-shadow: 0 0 12px rgba(34,197,94,0.6); }
 
-/* Smooth hover base — 200-250ms */
-button, a, [role="button"] { cursor: pointer; transition: background-color 200ms, color 200ms, border-color 200ms, opacity 200ms, transform 200ms; }
+/* Focus ring — WCAG visible, emerald */
+*:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+
+/* Smooth hover base — transform + opacity only (HW accel) */
+button, a, [role="button"] { cursor: pointer; transition: background-color 200ms, color 200ms, border-color 200ms, opacity 200ms, transform 200ms, box-shadow 200ms, backdrop-filter 200ms; }
+button:active, [role="button"]:active { transform: translateY(1px) scale(0.98); }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {

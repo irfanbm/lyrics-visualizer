@@ -2,12 +2,14 @@ import type { LyricLine } from '../utils/lrcParser'
 import type { RenderConfig } from '../types'
 import { getDimensions } from '../types'
 import { getDefaultFontSize } from '../utils/fonts'
+import { drawByType, type VisualizerType } from '../visualizers/draw'
 
 export interface RenderState {
   lines: LyricLine[]
   time: number
   duration: number
   title: string
+  analyserData?: Uint8Array | null
 }
 
 function easeOutCubic(x: number): number {
@@ -37,6 +39,64 @@ export function renderLyricFrame(
     grad.addColorStop(1, config.bgColor + 'CC')
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, w, h)
+  }
+
+  // ---- Visualizer (behind lyrics, from oscillator-visualizer) ----
+  const viz = (config as any).visualizer as VisualizerType | 'none' | undefined
+  const vizAlpha = (config as any).visualizerOpacity ?? 0.55
+  const vizPos = (config as any).visualizerPosition || 'background'
+  const vizColor = (config as any).visualizerColor || '#22C55E'
+  const vizSize = (config as any).visualizerSize ?? 1
+  const vizSens = (config as any).visualizerSensitivity ?? 1
+  const vizBars = (config as any).visualizerBars ?? 48
+  const vizSmooth = (config as any).visualizerSmoothing ?? 0.35
+  // clip region by position & size
+  const vizH = vizPos === 'background' ? h : Math.round(h * 0.32 * vizSize)
+  const vizY = vizPos === 'top' ? 0 : vizPos === 'bottom' ? h - vizH : 0
+  const drawH = vizPos === 'background' ? h : vizH
+
+  // smoothing buffer
+  const smoothed: Uint8Array = (() => {
+    const d = state.analyserData
+    if (!d || vizSmooth <= 0) return d as any
+    const prev = (globalThis as any).__vizPrev as Uint8Array | undefined
+    if (!prev || prev.length !== d.length) {
+      ;(globalThis as any).__vizPrev = new Uint8Array(d)
+      return d
+    }
+    const out = new Uint8Array(d.length)
+    for (let i = 0; i < d.length; i++) out[i] = Math.round(prev[i] * vizSmooth + d[i] * (1 - vizSmooth))
+    ;(globalThis as any).__vizPrev = out
+    return out
+  })() as any
+
+  const drawViz = (data: Uint8Array, len: number) => {
+    ctx.save()
+    if (vizPos !== 'background') {
+      ctx.beginPath(); ctx.rect(0, vizY, w, vizH); ctx.clip()
+    }
+    if (vizSize !== 1 && vizPos === 'background') {
+      ctx.translate(w / 2, h / 2); ctx.scale(vizSize, vizSize); ctx.translate(-w / 2, -h / 2)
+    }
+    try {
+      drawByType(viz as VisualizerType, ctx, data, len, w, drawH, { alpha: vizAlpha, color: vizColor, sensitivity: vizSens, bars: vizBars })
+    } catch {}
+    ctx.restore()
+  }
+
+  if (viz && viz !== 'none') {
+    const srcData = smoothed && (smoothed as Uint8Array).length ? (smoothed as Uint8Array) : state.analyserData
+    if (srcData && srcData.length > 0) {
+      drawViz(srcData, srcData.length)
+    } else {
+      const fakeLen = vizBars || 64
+      const fake = new Uint8Array(fakeLen)
+      for (let i = 0; i < fakeLen; i++) {
+        const base = 80 + 70 * Math.sin(state.time * 2 + i * 0.3) + 30 * Math.sin(state.time * 5 + i)
+        fake[i] = Math.max(0, Math.min(255, Math.round(base)))
+      }
+      drawViz(fake, fakeLen)
+    }
   }
 
   const fontRef = getDefaultFontSize(w, h, config.fontFamily)

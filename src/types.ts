@@ -1,5 +1,4 @@
 import type React from 'react'
-import type { LyricLine } from './utils/lrcParser'
 
 // ===================== Editor =====================
 
@@ -39,6 +38,16 @@ export interface RenderConfig {
   transparentBg: boolean
   /** Opacity lirik tidak aktif */
   inactiveOpacity: number
+  /** Visualizer background — grid picker di tab Visualizer (bars retained + elegant) */
+  visualizer: 'none' | 'bars' | 'mirrored' | 'wave' | 'circular' | 'particles' | 'spectrum' | 'horizon'
+  visualizerOpacity: number
+  visualizerPosition: 'background' | 'bottom' | 'top' | 'center'
+  visualizerColor: string
+  visualizerSize: number
+  visualizerSensitivity: number
+  visualizerSmoothing: number
+  visualizerBars: number
+  visualizerConfigs: Record<string, Partial<RenderConfig>>
 }
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
@@ -60,6 +69,15 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   fontItalic: false,
   transparentBg: false,
   inactiveOpacity: 0.28,
+  visualizer: 'none',
+  visualizerOpacity: 0.55,
+  visualizerPosition: 'background',
+  visualizerColor: '#22C55E',
+  visualizerSize: 1,
+  visualizerSensitivity: 1,
+  visualizerSmoothing: 0.35,
+  visualizerBars: 48,
+  visualizerConfigs: {},
 }
 
 export interface Dimension {
@@ -89,6 +107,7 @@ export interface LayoutProps {
   textPanel: React.ReactNode
   exportPanel: React.ReactNode
   editorList: React.ReactNode
+  visualizerPanel?: React.ReactNode
 }
 
 export interface LayoutDefinition {

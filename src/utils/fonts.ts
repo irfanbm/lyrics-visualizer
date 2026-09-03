@@ -52,7 +52,7 @@ export async function ensureFontLoaded(family: string): Promise<void> {
 /**
  * Get base font sizes for active/inactive lines based on dimensions
  */
-export function getDefaultFontSize(w: number, h: number, fontFamily: string): { active: number, inactive: number } {
+export function getDefaultFontSize(w: number, h: number, _fontFamily: string): { active: number, inactive: number } {
   const isPortrait = w < h
   const scaleFactor = w / (isPortrait ? 1080 : 1920)
   const baseActive = isPortrait ? 56 : 52

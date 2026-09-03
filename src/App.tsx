@@ -2,7 +2,6 @@
 import type * as React from 'react'
 import { parseLRC } from './utils/lrcParser'
 import type { LyricLine } from './utils/lrcParser'
-import { getDimensions } from './types'
 import type { EditorLine } from './types'
 import { CanvasPreview } from './components/CanvasPreview'
 import { AudioPanel, formatTimeShort } from './components/panels/AudioPanel'
@@ -10,7 +9,8 @@ import { RenderSettingsPanel } from './components/panels/RenderSettingsPanel'
 import { TextInputPanel } from './components/panels/TextInputPanel'
 import { ExportPanel } from './components/panels/ExportPanel'
 import { EditorListPanel } from './components/panels/EditorListPanel'
-import { AVAILABLE_LAYOUTS, getLayoutById } from './layouts'
+import { getLayoutById } from './layouts'
+import { VisualizerPanel } from './components/panels/VisualizerPanel'
 import { buildExport, EXPORT_FORMATS } from './utils/exportFormats'
 import { ensureFontLoaded } from './utils/fonts'
 import { renderLyricFrame } from './render/lyricRenderer'
@@ -28,39 +28,29 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [offset, setOffset] = useState(0)
-  const [coverUrl] = useState("")
   const [pasteTxt, setPasteTxt] = useState("")
 
   const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('lyric-config')
-    if (saved) try { return JSON.parse(saved); } catch {}
-    return {
+    const defaults: any = {
       resolution: '1080p', customWidth: 1920, customHeight: 1080,
       showDuration: true, showProgressBar: true, showLineCounter: false,
       showTitle: false, karaokeMode: true, lyricPosition: 'center',
       bgColor: '#0a0a0a', fontFamily: 'Poppins',
       lineGap: 1.85, fadeEdges: true, visibleLines: 5,
       fontWeight: 700, fontItalic: false, transparentBg: false, inactiveOpacity: 0.28,
-    } as any
+      visualizer: 'none', visualizerOpacity: 0.55, visualizerPosition: 'background', visualizerColor: '#22C55E', visualizerSize: 1, visualizerSensitivity: 1, visualizerSmoothing: 0.35, visualizerBars: 48, visualizerConfigs: {},
+    }
+    const saved = localStorage.getItem('lyric-config')
+    if (saved) try { const parsed = JSON.parse(saved); return { ...defaults, ...parsed, visualizerConfigs: parsed.visualizerConfigs || {} }; } catch {}
+    return defaults
   })
 
-  const [selectedLayoutId, setSelectedLayoutId] = useState(() => localStorage.getItem('lyric-layout-id') || 'classic')
+  const [_selectedLayoutId] = useState(() => localStorage.getItem('lyric-layout-id') || 'focus-canvas')
 
   const [exportFmt, setExportFmt] = useState('lrc')
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
   const [exportVideoUrl, setExportVideoUrl] = useState<string | null>(null)
-
-  const modeRef = useRef(mode)
-  const currentTimeRef = useRef(currentTime)
-  const offsetRef = useRef(offset)
-  const configRef = useRef(config)
-  const displayLinesRef = useRef(displayLines)
-  useEffect(() => { modeRef.current = mode }, [mode])
-  useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
-  useEffect(() => { offsetRef.current = offset }, [offset])
-  useEffect(() => { configRef.current = config }, [config])
-  useEffect(() => { displayLinesRef.current = displayLines }, [displayLines])
 
   // baris kosong = jeda visual, tidak perlu di-tap — hanya hitung baris berisi teks
   const editorTotalLines = editorLines.filter(l => l.text.trim() !== '').length
@@ -78,7 +68,7 @@ export default function App() {
     }))
   }, [lines, offset])
 
-  const activeIndex = useMemo(() => {
+  const _activeIndex = useMemo(() => {
     if (displayLines.length === 0) return -1
     let idx = -1
     for (let i = 0; i < displayLines.length; i++) {
@@ -91,9 +81,20 @@ export default function App() {
     }
     return idx
   }, [currentTime, displayLines])
+  void _activeIndex
+
+  const modeRef = useRef(mode)
+  const currentTimeRef = useRef(currentTime)
+  const offsetRef = useRef(offset)
+  const configRef = useRef(config)
+  const displayLinesRef = useRef(displayLines)
+  useEffect(() => { modeRef.current = mode }, [mode])
+  useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
+  useEffect(() => { offsetRef.current = offset }, [offset])
+  useEffect(() => { configRef.current = config }, [config])
+  useEffect(() => { displayLinesRef.current = displayLines }, [displayLines])
 
   useEffect(() => { localStorage.setItem('lyric-config', JSON.stringify(config)) }, [config])
-  useEffect(() => { localStorage.setItem('lyric-layout-id', selectedLayoutId) }, [selectedLayoutId])
 
   useEffect(() => {
     let raf = 0
@@ -137,11 +138,20 @@ export default function App() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isExporting) return
       const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
       if (e.code === 'Space') {
         e.preventDefault()
         if (modeRef.current === 'editor') handleMark()
         else handlePlayToggle()
+      }
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        if (!audioRef.current) return
+        e.preventDefault()
+        const delta = e.altKey ? 0.05 : 1
+        const dir = e.code === 'ArrowLeft' ? -delta : delta
+        const next = Math.max(0, Math.min((audioRef.current.duration || 1e9), (audioRef.current.currentTime || 0) + dir))
+        audioRef.current.currentTime = next
+        setCurrentTime(next)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -157,7 +167,7 @@ export default function App() {
     const newLines: LyricLine[] = marked.map((l, i) => {
       const s = l.startTime!
       const nextStart = marked[i + 1]?.startTime
-      const end = nextStart !== undefined ? Math.min(s + 3.4, nextStart) : s + 3.4
+      const end = nextStart != null ? Math.min(s + 3.4, nextStart) : s + 3.4
       const txt = l.text.trim()
       const ws = txt.split(/\s+/).filter(Boolean)
       const per = ws.length ? (end - s) / ws.length : (end - s)
@@ -171,7 +181,7 @@ export default function App() {
     const newLines: LyricLine[] = sorted.map((l, i) => {
       const s = l.startTime!
       const nextStart = sorted[i + 1]?.startTime
-      const end = nextStart !== undefined ? Math.min(s + 3.4, nextStart) : s + 3.4
+      const end = nextStart != null ? Math.min(s + 3.4, nextStart) : s + 3.4
       const txt = l.text.trim()
       const per = txt.split(/\s+/).filter(Boolean).length ? (end - s) / txt.split(/\s+/).filter(Boolean).length : 4
       return { startTime: s, endTime: end, text: txt, words: txt.split(/\s+/).filter(Boolean).map((w, wi) => ({ text: w, startTime: s + wi * per, endTime: s + (wi + 1) * per })) }
@@ -296,6 +306,19 @@ export default function App() {
     recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data) }
     const done = new Promise<void>(res => { recorder.onstop = () => res() })
 
+    // visualizer analyser for export (share live frequency)
+    let exportAnalyser: AnalyserNode | null = null
+    let exportData: Uint8Array | null = null
+    try {
+      const ac = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const src = ac.createMediaElementSource(audioRef.current!)
+      exportAnalyser = ac.createAnalyser()
+      exportAnalyser.fftSize = 512
+      exportData = new Uint8Array(exportAnalyser.frequencyBinCount)
+      src.connect(exportAnalyser)
+      exportAnalyser.connect(ac.destination)
+    } catch {}
+
     audioRef.current.currentTime = 0
     await audioRef.current.play()
     recorder.start()
@@ -308,7 +331,10 @@ export default function App() {
       setExportProgress(finalDur ? Math.min(100, (time / finalDur) * 100) : 0)
       const curCfg = configRef.current
       const curLines = displayLinesRef.current
-      renderLyricFrame(ctx, curCfg, { lines: curLines, time, duration: finalDur, title: '' })
+      if (exportAnalyser && exportData && (curCfg as any).visualizer && (curCfg as any).visualizer !== 'none') {
+        try { exportAnalyser.getByteFrequencyData(exportData as Uint8Array<ArrayBuffer>) } catch {}
+      }
+      renderLyricFrame(ctx, curCfg, { lines: curLines, time, duration: finalDur, title: '', analyserData: exportData as any })
       if (!el.ended && !el.paused) {
         requestAnimationFrame(renderLoop)
       } else {
@@ -336,22 +362,24 @@ export default function App() {
   }
 
   const header = (
-    <header className="p-4 border-b border-white/10 flex items-center justify-between">
-      <h1 className="text-lg font-bold">🎵 Lyric Visualizer</h1>
-      <div className="flex items-center gap-3">
-        <label className="text-[11px] text-white/60 hidden sm:block">UI Layout:</label>
-        <select
-          value={selectedLayoutId}
-          onChange={(e) => setSelectedLayoutId(e.target.value)}
-          className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-emerald-500 text-white"
-        >
-          {AVAILABLE_LAYOUTS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
+    <header className="h-[52px] px-3 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-7 h-7 rounded-lg bg-[var(--color-accent)] grid place-items-center text-black font-black text-sm shrink-0 neon-glow">LV</div>
+        <div className="min-w-0 hidden sm:block">
+          <h1 className="text-[14px] font-bold font-display leading-none tracking-tight neon-text">Lyric Visualizer</h1>
+          <p className="text-[10px] text-white/50 font-mono tracking-widest">NEON GLASS · WYSIWYG</p>
+        </div>
+        <h1 className="text-[14px] font-bold font-display sm:hidden neon-text">Lyric Visualizer</h1>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono tracking-widest text-white/35 border border-white/10 rounded-full px-2.5 py-1 glass">FOCUS CANVAS</span>
         <button
           onClick={() => setMode(m => m === 'player' ? 'editor' : 'player')}
-          className={`px-3 py-2 rounded-lg text-xs font-bold transition ${mode === 'editor' ? 'bg-amber-500 text-black' : 'bg-white/10 text-white/70 hover:bg-white/15 border border-white/10'}`}
+          aria-pressed={mode === 'editor'}
+          aria-label={mode === 'editor' ? 'Switch to player mode' : 'Switch to editor mode'}
+          className={`min-h-[36px] px-4 py-2 rounded-full text-xs font-bold transition border ${mode === 'editor' ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.4)]' : 'glass text-white/70 hover:bg-white/10 border-white/10'}`}
         >
-          {mode === 'player' ? '📝 Editor Mode' : '▶️ Player Mode'}
+          {mode === 'player' ? 'Editor' : 'Player'}
         </button>
       </div>
     </header>
@@ -419,7 +447,11 @@ export default function App() {
     />
   )
 
-  const LayoutEntry = getLayoutById(selectedLayoutId)
+  const visualizerPanel = (
+    <VisualizerPanel audioRef={audioRef} audioSrc={audioSrc} currentTime={currentTime} duration={duration} config={config} onConfigChange={(patch) => setConfig({ ...config, ...patch })} />
+  )
+
+  const LayoutEntry = getLayoutById(_selectedLayoutId)
 
   return (
     <>
@@ -428,6 +460,7 @@ export default function App() {
         header={header}
         previewArea={previewArea}
         audioPanel={audioPanel}
+        visualizerPanel={visualizerPanel}
         renderSettingsPanel={renderSettingsPanel}
         textPanel={textPanel}
         exportPanel={exportPanel}
